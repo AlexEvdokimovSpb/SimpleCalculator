@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.example.simplecalculator.model.Action
 import com.example.simplecalculator.model.Calculation
 import com.example.simplecalculator.model.Repository
+import java.util.*
 
 class MainViewModel(private val repository: Repository = Repository) : ViewModel() {
 
@@ -22,6 +23,10 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
     private var action = Action.NO_ACTIONS
     private var isFirstAction = true
 
+    private lateinit var calculations: MutableList<Calculation>
+    private lateinit var pendingCalculation: Calculation
+    private lateinit var lastCalculation: Calculation
+
     init {
         Repository.getCalculations().observeForever { calculations ->
             viewStateLiveData.value =
@@ -29,14 +34,13 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
                     calculations
                 )
         }
+        showHistoryResult()
     }
 
     fun viewState(): LiveData<CalculationViewState> = viewStateLiveData
     val currentValueLiveData: LiveData<String> = _currentValueLiveData
     val historyValueLiveData: LiveData<String> = _historyValueLiveData
     val errorValueLiveData: LiveData<Boolean> = _errorValueLiveData
-
-    private var pendingCalculation: Calculation? = null
 
     fun numberPressed(number: String) {
         _currentValueLiveData.value = _currentValueLiveData.value + number
@@ -110,6 +114,7 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
             }
             this.action = action
             firstArgument = _currentValueLiveData.value?.toDouble() ?: 0.0
+
             _currentValueLiveData.value = ""
             isFirstAction = false
         } else {
@@ -128,6 +133,7 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
                 Action.EQUALLY -> equallyPressed()
                 Action.NO_ACTIONS -> return
             }
+            saveChanges()
             showResult()
         }
     }
@@ -154,15 +160,14 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
         }
     }
 
-
-    fun saveChanges(calculation: Calculation) {
-        pendingCalculation = calculation
+    private fun saveChanges() {
+        val id: String = UUID.randomUUID().toString()
+        pendingCalculation = Calculation(id, firstArgument, secondArgument, result, action)
+        repository.saveCalculation(pendingCalculation)
     }
 
     override fun onCleared() {
-        if (pendingCalculation != null) {
-            repository.saveCalculation(pendingCalculation!!)
-        }
+        repository.saveCalculation(pendingCalculation)
         super.onCleared()
     }
 
@@ -176,4 +181,18 @@ class MainViewModel(private val repository: Repository = Repository) : ViewModel
             Action.NO_ACTIONS -> return ""
         }
     }
+
+    private fun showHistoryResult() {
+        val sizeHistoryResult = repository.getCalculations().value?.size ?: 0
+        if (sizeHistoryResult > 0) {
+            calculations = repository.getCalculations().value as MutableList<Calculation>
+            lastCalculation = calculations[sizeHistoryResult - 1]
+            _historyValueLiveData.value = lastCalculation.firstArgument.toString() +
+                    actionToString(lastCalculation.action) +
+                    lastCalculation.secondArgument.toString() +
+                    "=" +
+                    lastCalculation.result.toString()
+        }
+    }
+
 }
