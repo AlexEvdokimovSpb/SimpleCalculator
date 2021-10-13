@@ -1,28 +1,69 @@
 package com.example.simplecalculator.viewmodel
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.MutableLiveData
 import com.example.simplecalculator.model.Action
+import com.example.simplecalculator.model.Calculation
+import com.example.simplecalculator.model.Repository
+import com.nhaarman.mockito_kotlin.times
+import com.nhaarman.mockito_kotlin.verify
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.Mock
+import org.mockito.Mockito.`when`
+import org.mockito.MockitoAnnotations
+import java.util.*
 
 class MainViewModelTest {
 
     private lateinit var viewModel: MainViewModel
+
+    private var id: String = UUID.randomUUID().toString()
+    private var firstArgument = 0.0
+    private var secondArgument = 0.0
+    private var result = 0.0
+    private var action = Action.NO_ACTIONS
+    private var pendingCalculation = Calculation(id, firstArgument, secondArgument, result, action)
+
+    @Mock
+    private lateinit var repository: Repository
+
+    @Mock
+    private lateinit var calculationsLiveData: MutableLiveData<List<Calculation>>
 
     @get:Rule
     val taskExecutorRule = InstantTaskExecutorRule()
 
     @Before
     fun setUp() {
-        viewModel = MainViewModel()
+        MockitoAnnotations.openMocks(this).close()
+        viewModel = MainViewModel(repository = Repository)
     }
 
     @After
     fun tearDown() {
+    }
+
+    @Test
+    fun `verify repository has getCalculations()`() {
+        repository.getCalculations()
+        verify(repository, times(1)).getCalculations()
+    }
+
+    @Test
+    fun `verify getCalculations() return calculationsLiveData`() {
+        `when`(repository.getCalculations()).thenReturn(calculationsLiveData)
+        assertEquals(calculationsLiveData, repository.getCalculations())
+    }
+
+    @Test
+    fun `verify repository has saveCalculation()`() {
+        repository.saveCalculation(pendingCalculation)
+        verify(repository, times(1)).saveCalculation(pendingCalculation)
     }
 
     @Test
